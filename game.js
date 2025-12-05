@@ -33,8 +33,25 @@ const game = {
 const astronautImg = new Image();
 astronautImg.src = 'astronaut.png';
 
-const collectibleImg = new Image();
-collectibleImg.src = 'collectible.png';
+// 10 різних картинок для ворогів/предметів
+const collectibleSpritePaths = [
+    'enemies/enemy01.png',
+    'enemies/enemy02.png',
+    'enemies/enemy03.png',
+    'enemies/enemy04.png',
+    'enemies/enemy05.png',
+    'enemies/enemy06.png',
+    'enemies/enemy07.png',
+    'enemies/enemy08.png',
+    'enemies/enemy09.png',
+    'enemies/enemy10.png'
+];
+
+const collectibleSprites = collectibleSpritePaths.map(path => {
+    const img = new Image();
+    img.src = path;
+    return img;
+});
 
 // ---- Ініціалізація зірок ----
 function initStars() {
@@ -145,19 +162,22 @@ function updateBoomerangs() {
     }
 }
 
-// ---- Спавн предметів (макс 3) ----
+// ---- Спавн предметів (макс 3, з випадковим спрайтом) ----
 function spawnCollectibles() {
     if (game.collectibles.length >= 3) return;
     if (Math.random() > 0.012) return;
 
     const size = 80;
+    const spriteIndex = Math.floor(Math.random() * collectibleSprites.length);
+
     game.collectibles.push({
         x: canvas.width + 10,
         y: Math.random() * (canvas.height - size - 100) + 50,
         width: size,
         height: size,
         speed: 3.5,
-        points: 100
+        points: 100,
+        spriteIndex
     });
 }
 
@@ -198,19 +218,7 @@ function draw() {
     });
     ctx.globalAlpha = 1;
 
-    game.collectibles.forEach(c => {
-        if (collectibleImg.complete && collectibleImg.naturalWidth > 0) {
-            ctx.drawImage(collectibleImg, c.x, c.y, c.width, c.height);
-        } else {
-            ctx.fillStyle = '#e74c3c';
-            ctx.fillRect(c.x, c.y, c.width, c.height);
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 14px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('STOP', c.x + c.width / 2, c.y + c.height / 2);
-        }
-    });
+    drawCollectibles();
 
     ctx.fillStyle = '#2ecc71';
     ctx.shadowColor = '#2ecc71';
@@ -227,6 +235,25 @@ function draw() {
     }
 
     scoreEl.textContent = game.score;
+}
+
+// ---- Малювання предметів з масиву ----
+function drawCollectibles() {
+    game.collectibles.forEach(c => {
+        const sprite = collectibleSprites[c.spriteIndex];
+
+        if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+            ctx.drawImage(sprite, c.x, c.y, c.width, c.height);
+        } else {
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(c.x, c.y, c.width, c.height);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('STOP', c.x + c.width / 2, c.y + c.height / 2);
+        }
+    });
 }
 
 // ---- Фолбек астронавта ----

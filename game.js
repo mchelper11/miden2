@@ -5,23 +5,17 @@ const scoreEl = document.getElementById('points');
 canvas.width = 1200;
 canvas.height = 700;
 
-// ---- Завантаження спрайтів ----
-const pepeImg = new Image();
-pepeImg.src = 'pepe.png';
-
-const collectibleImg = new Image();
-collectibleImg.src = 'collectible.png';
-
 // ---- Стан гри ----
 const game = {
     score: 0,
-    gravity: 0.45,
-    jumpForce: -9,
+    gravity: 0.4,
+    jumpForce: -8,
+    isRunning: true,
     player: {
-        x: 220,
+        x: 150,
         y: canvas.height / 2,
-        width: 64,
-        height: 64,
+        width: 60,
+        height: 60,
         velY: 0
     },
     boomerangs: [],
@@ -29,87 +23,98 @@ const game = {
     stars: []
 };
 
-// ---- Допоміжні генератори ----
+// ---- Завантаження спрайтів (опціонально) ----
+const pepeImg = new Image();
+pepeImg.src = 'pepe.png';
+
+const collectibleImg = new Image();
+collectibleImg.src = 'collectible.png';
+
+// ---- Ініціалізація зірок ----
 function initStars() {
-    for (let i = 0; i < 160; i++) {
+    game.stars = [];
+    for (let i = 0; i < 150; i++) {
         game.stars.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            size: Math.random() * 2 + 1,
+            size: Math.random() * 2 + 0.5,
             speed: Math.random() * 1.5 + 0.5
         });
     }
 }
-initStars();
 
-// ---- Управління ----
-document.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') {
-        e.preventDefault();
-        flapAndShoot();
-    }
-});
-
-function flapAndShoot() {
+// ---- Керування ----
+function handleInput() {
+    if (!game.isRunning) return;
     game.player.velY = game.jumpForce;
     shootBoomerang();
 }
 
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+        e.preventDefault();
+        handleInput();
+    }
+});
+
+canvas.addEventListener('click', () => {
+    handleInput();
+});
+
+// ---- Постріл бумеранга ----
 function shootBoomerang() {
     game.boomerangs.push({
         x: game.player.x + game.player.width,
         y: game.player.y + game.player.height / 2,
         phase: 'out',
-        distance: 0,
-        range: 300,          // удвічі коротше ніж раніше
-        speed: 14,
-        wave: 0
+        startX: game.player.x + game.player.width,
+        maxRange: 280,
+        speed: 12
     });
 }
 
-// ---- Оновлення ----
+// ---- Оновлення гравця ----
 function updatePlayer() {
     game.player.velY += game.gravity;
     game.player.y += game.player.velY;
 
-    if (game.player.y < 20) {
-        game.player.y = 20;
+    // Верхня межа
+    if (game.player.y < 0) {
+        game.player.y = 0;
         game.player.velY = 0;
     }
 
-    if (game.player.y + game.player.height > canvas.height - 20) {
-        game.player.y = canvas.height - 20 - game.player.height;
+    // Нижня межа — Game Over
+    if (game.player.y + game.player.height > canvas.height) {
+        game.player.y = canvas.height - game.player.height;
         game.player.velY = 0;
         gameOver();
     }
 }
 
+// ---- Оновлення бумерангів ----
 function updateBoomerangs() {
     for (let i = game.boomerangs.length - 1; i >= 0; i--) {
         const b = game.boomerangs[i];
 
         if (b.phase === 'out') {
             b.x += b.speed;
-            b.distance += b.speed;
-            b.y += Math.sin(b.wave) * 1.2;
-            b.wave += 0.25;
-
-            if (b.distance >= b.range) b.phase = 'back';
+            if (b.x - b.startX >= b.maxRange) {
+                b.phase = 'back';
+            }
         } else {
-            b.x -= b.speed * 0.9;
-            b.y -= Math.sin(b.wave) * 1.2;
-            b.wave += 0.25;
-
-            if (b.x <= game.player.x + 10) {
+            b.x -= b.speed * 0.85;
+            if (b.x <= game.player.x) {
                 game.boomerangs.splice(i, 1);
                 continue;
             }
         }
 
-        // Перевірка на зіткнення з предметом
+        // Колізія з предметами
         for (let j = game.collectibles.length - 1; j >= 0; j--) {
-            if (rectIntersect(b.x, b.y - 4, 24, 8, game.collectibles[j])) {
-                game.score += game.collectibles[j].points;
+            const c = game.collectibles[j];
+            if (isColliding(b.x, b.y - 5, 25, 10, c.x, c.y, c.width, c.height)) {
+                game.score += c.points;
                 game.collectibles.splice(j, 1);
                 game.boomerangs.splice(i, 1);
                 break;
@@ -118,21 +123,23 @@ function updateBoomerangs() {
     }
 }
 
+// ---- Спавн предметів (макс 3) ----
 function spawnCollectibles() {
     if (game.collectibles.length >= 3) return;
-    if (Math.random() > 0.015) return;
+    if (Math.random() > 0.012) return;
 
-    const size = 90;
+    const size = 80;
     game.collectibles.push({
-        x: canvas.width + 20,
-        y: Math.random() * (canvas.height - size - 120) + 60,
+        x: canvas.width + 10,
+        y: Math.random() * (canvas.height - size - 100) + 50,
         width: size,
         height: size,
-        speed: 4,
-        points: 150
+        speed: 3.5,
+        points: 100
     });
 }
 
+// ---- Оновлення предметів ----
 function updateCollectibles() {
     for (let i = game.collectibles.length - 1; i >= 0; i--) {
         const c = game.collectibles[i];
@@ -144,27 +151,147 @@ function updateCollectibles() {
     }
 }
 
+// ---- Оновлення зірок ----
 function updateStars() {
     game.stars.forEach(star => {
         star.x -= star.speed;
         if (star.x < 0) {
             star.x = canvas.width;
             star.y = Math.random() * canvas.height;
-            star.speed = Math.random() * 1.5 + 0.5;
         }
     });
 }
 
 // ---- Малювання ----
-function drawStars() {
-    ctx.fillStyle = '#fff';
+function draw() {
+    // Фон
+    ctx.fillStyle = '#05051a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Зірки
+    ctx.fillStyle = '#ffffff';
     game.stars.forEach(star => {
-        ctx.globalAlpha = 0.4 + star.size / 3;
-        ctx.fillRect(star.x, star.y, star.size, star.size);
+        ctx.globalAlpha = 0.3 + star.size / 3;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
     });
     ctx.globalAlpha = 1;
+
+    // Предмети
+    game.collectibles.forEach(c => {
+        if (collectibleImg.complete && collectibleImg.naturalWidth > 0) {
+            ctx.drawImage(collectibleImg, c.x, c.y, c.width, c.height);
+        } else {
+            // Фолбек — червоний квадрат з STOP
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(c.x, c.y, c.width, c.height);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('STOP', c.x + c.width / 2, c.y + c.height / 2);
+        }
+    });
+
+    // Бумеранги
+    ctx.fillStyle = '#2ecc71';
+    ctx.shadowColor = '#2ecc71';
+    ctx.shadowBlur = 8;
+    game.boomerangs.forEach(b => {
+        ctx.fillRect(b.x, b.y - 4, 22, 8);
+    });
+    ctx.shadowBlur = 0;
+
+    // Гравець
+    if (pepeImg.complete && pepeImg.naturalWidth > 0) {
+        ctx.drawImage(pepeImg, game.player.x, game.player.y, game.player.width, game.player.height);
+    } else {
+        // Фолбек — простий Pepe
+        drawFallbackPepe();
+    }
+
+    // Оновлення очок
+    scoreEl.textContent = game.score;
 }
 
-function drawPlayer() {
-    if (pepeImg.complete) {
-        ctx.drawImage(pepeImg, game.player.x, game.player.y, game
+// ---- Простий Pepe без картинки ----
+function drawFallbackPepe() {
+    const p = game.player;
+
+    // Тіло
+    ctx.fillStyle = '#6b8e23';
+    ctx.beginPath();
+    ctx.ellipse(p.x + p.width / 2, p.y + p.height / 2, p.width / 2, p.height / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Очі
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(p.x + 18, p.y + 20, 10, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(p.x + 42, p.y + 20, 10, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Зіниці
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(p.x + 20, p.y + 22, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(p.x + 44, p.y + 22, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Рот
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x + p.width / 2, p.y + 42, 12, 0.1 * Math.PI, 0.9 * Math.PI);
+    ctx.stroke();
+}
+
+// ---- Колізія прямокутників ----
+function isColliding(x1, y1, w1, h1, x2, y2, w2, h2) {
+    return x1 < x2 + w2 &&
+           x1 + w1 > x2 &&
+           y1 < y2 + h2 &&
+           y1 + h1 > y2;
+}
+
+// ---- Game Over ----
+function gameOver() {
+    game.isRunning = false;
+    setTimeout(() => {
+        alert('GAME OVER!\nОчки: ' + game.score);
+        resetGame();
+    }, 100);
+}
+
+// ---- Скидання гри ----
+function resetGame() {
+    game.score = 0;
+    game.player.y = canvas.height / 2;
+    game.player.velY = 0;
+    game.boomerangs = [];
+    game.collectibles = [];
+    game.isRunning = true;
+}
+
+// ---- Головний цикл ----
+function gameLoop() {
+    if (game.isRunning) {
+        updatePlayer();
+        updateBoomerangs();
+        spawnCollectibles();
+        updateCollectibles();
+        updateStars();
+    }
+
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+// ---- Старт гри ----
+initStars();
+gameLoop();

@@ -2,261 +2,225 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const pointsEl = document.getElementById('points');
 
-// Налаштування canvas
 canvas.width = 1200;
 canvas.height = 800;
 
-let game = {
+const game = {
     score: 0,
+    gravity: 0.5,
+    jumpForce: -10,
     gameSpeed: 3,
+    boomerangSpeed: 15,
     stars: [],
-    collectibles: [], // Предмети з правої сторони
+    collectibles: [],
     boomerangs: [],
     player: {
-        x: 100,
-        y: canvas.height / 2 - 30,
+        x: 200,
+        y: canvas.height / 2,
         width: 60,
         height: 60,
-        speed: 8,
-        targetY: canvas.height / 2 - 30 // Цільова позиція для плавного руху
+        velY: 0,
+        isAlive: true,
+        image: new Image(),
+        src: 'pepe.png'
     },
-    autoMove: true // Автоматичний рух вправо
+    collectibleImg: new Image(),
+    collectibleImgSrc: 'collectible.png'
 };
 
-// Створення зірок фону
-function createStars() {
-    for(let i = 0; i < 100; i++) {
+// Зірки фон
+function initStars() {
+    for (let i = 0; i < 200; i++) {
         game.stars.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            speed: Math.random() * 2 + 1,
-            size: Math.random() * 2 + 1
+            size: Math.random() * 3,
+            speed: Math.random() * (game.gameSpeed + 1) + 1
         });
     }
 }
 
-// Pepe гравець
-function drawPlayer() {
-    ctx.fillStyle = '#9B59B6';
-    ctx.fillRect(game.player.x, game.player.y, game.player.width, game.player.height);
-    
-    // Очі Pepe
-    ctx.fillStyle = 'white';
-    ctx.fillRect(game.player.x + 10, game.player.y + 10, 15, 15);
-    ctx.fillRect(game.player.x + 35, game.player.y + 10, 15, 15);
-    ctx.fillStyle = 'black';
-    ctx.fillRect(game.player.x + 15, game.player.y + 15, 5, 5);
-    ctx.fillRect(game.player.x + 40, game.player.y + 15, 5, 5);
-    
-    // Усмішка
-    ctx.strokeStyle = '#2ECC71';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.arc(game.player.x + 30, game.player.y + 40, 12, 0, Math.PI);
-    ctx.stroke();
+// Завантаження картинок
+game.collectibleImg.onload = () => {
+    requestAnimationFrame(gameLoop);
+};
+game.collectibleImg.src = 'collectible.png';
+
+// Головний цикл гри після натискання
+function gameLoop() {
+    // Очищення canvas
+    ctx.fillStyle = '#0A0A23';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    updateStars();
+    updatePlayer();
+    updateBoomerangs();
+    spawnCollectible();
+    updateCollectibles();
+    render();
+
+    requestAnimationFrame(gameLoop);
 }
 
-// Короткі бумеранги (довжина в 2 рази коротша)
+// Flappy механіка: падає ⬇️, стрибає ⬆️ при пробілу/кліку
+function updatePlayer() {
+    game.player.y += game.player.velY;
+    game.player.velY += game.gravity;
+
+    // Обмеження падіння та верхньої межі
+    if (game.player.y > canvas.height) game.player.isAlive = false; // Падіння вниз → смерть
+
+    // Стрибок при пробілу або кліку
+    const controls = () => {
+        game.player.velY = game.jumpForce;
+        if (game.player.isAlive) shootBoomerang();
+    };
+
+    document.addEventListener('keydown', e => e.code === 'Space' && controls());
+    canvas.addEventListener('click', controls);
+
+    // Смерть
+    if (!game.player.isAlive) {
+        alert(`Game Over! Score: ${game.score}`);
+        resetGame();
+    }
+}
+
+// Бумеранг постріл коротший
 function shootBoomerang() {
+    const clickY = game.player.y + game.player.height / 2;
     game.boomerangs.push({
         x: game.player.x + game.player.width,
-        y: game.player.y + game.player.height / 2,
-        phase: 'out',
-        maxDistance: 300 // Коротша дистанція (було ~600)
+        y: clickY,
+        phase: 'out', // out → вперед, back → назад
+        maxDistance: 350,
+        speed: game.boomerangSpeed,
+        angle: 0
     });
 }
 
 function updateBoomerangs() {
-    game.boomerangs.forEach((boomerang, index) => {
-        if(boomerang.phase === 'out') {
-            boomerang.x += 12; // Трохи повільніше
-            boomerang.distanceTraveled = (boomerang.x - (game.player.x + game.player.width));
-            
-            // Повертається на половині дистанції
-            if(boomerang.distanceTraveled > boomerang.maxDistance) {
+    game.boomerangs.forEach((boomerang, bIndex) => {
+        if (boomerang.phase === 'out') {
+            // Летить вперед (по дузі)
+            boomerang.x += boomerang.speed;
+            boomerang.y += Math.sin(boomerang.angle) * 2;
+            boomerang.angle += 0.05;
+
+            // Дистанція
+            if (boomerang.x > boomerang.startX + boomerang.maxDistance) {
                 boomerang.phase = 'back';
-                boomerang.returnSpeed = 10;
             }
         } else {
-            boomerang.x -= boomerang.returnSpeed;
-            boomerang.returnSpeed += 0.2; // Прискорюється назад
-            
-            if(boomerang.x < game.player.x + game.player.width) {
-                game.boomerangs.splice(index, 1);
-            }
+            // Летить назад (прямо)
+            boomerang.speed -= 0.2; // сповільнюється
+            boomerang.x -= boomerang.speed;
+
+            if (boomerang.x < 0) game.boomerangs.splice(bIndex, 1);
         }
-        
-        // Малюємо короткий бумеранг
-        ctx.fillStyle = '#2ECC71';
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#2ECC71';
-        ctx.fillRect(boomerang.x, boomerang.y - 4, 20, 8); // Коротший!
-        ctx.shadowBlur = 0;
     });
 }
 
-// Предмети з правої сторони (твоя картинка)
+// Предмети збиваємо бумерангами
 function spawnCollectible() {
-    if(Math.random() < 0.015) { // Частота спавну
-        game.collectibles.push({
+    const { collectibles, isAlive } = game;
+    if (!isAlive) return;
+
+    if (Math.random() < 0.01) {
+        collectibles.push({
             x: canvas.width,
-            y: Math.random() * (canvas.height - 120) + 60,
+            y: Math.random() * (canvas.height - 200) + 50,
             width: 50,
             height: 50,
-            speed: game.gameSpeed + Math.random() * 1.5,
-            points: 200 + Math.floor(Math.random() * 300), // 200-500 очок
-            bobOffset: Math.random() * Math.PI * 2 // Для анімації "плавання"
+            speed: game.gameSpeed + 3,
+            points: 100
         });
     }
 }
 
 function updateCollectibles() {
-    game.collectibles.forEach((collectible, cIndex) => {
-        collectible.x -= collectible.speed;
-        collectible.bobOffset += 0.1; // Анімація "плавання"
-        collectible.y += Math.sin(collectible.bobOffset) * 0.5;
-        
-        // Колізія з бумерангами
-        game.boomerangs.forEach((boomerang, bIndex) => {
-            if(boomerang.x < collectible.x + collectible.width &&
-               boomerang.x + 20 > collectible.x &&
-               boomerang.y - 4 < collectible.y + collectible.height &&
-               boomerang.y + 4 > collectible.y) {
-                
+    const { collectibles, boomerangs, gameSpeed, player } = game;
+
+    collectibles.forEach((collectible, cIndex) => {
+        collectible.x -= collectible.speed; // летить вліво
+
+        // Перевірка на збивання бумерангом
+        boomerangs.forEach((boomerang, bIndex) => {
+            if (checkCollision(boomerang, collectible)) {
                 game.collectibles.splice(cIndex, 1);
                 game.boomerangs.splice(bIndex, 1);
                 game.score += collectible.points;
-                
-                // Ефект вибуху/зникнення
-                for(let i = 0; i < 5; i++) {
-                    setTimeout(() => {}, 50);
-                }
-                return;
             }
         });
-        
-        // Видаляємо якщо вилетіли зліва
-        if(collectible.x < -50) {
-            game.collectibles.splice(cIndex, 1);
-        }
+
+        // Пропустили предмет → переміщення на новий
+        if (collectible.x < 0) game.collectibles.splice(cIndex, 1);
     });
+
+    // Стреляємо автоматично, щоб не врізатися в предмети
+    if (Math.random() < 0.004 && player.isAlive) spawnCollectible();
 }
 
-// Малювання предметів (поки без картинки - золоті монетки)
-function drawCollectibles() {
-    game.collectibles.forEach(collectible => {
-        // Золотий предмет (заміни на img.onload коли додаси картинку)
-        ctx.save();
-        ctx.translate(collectible.x + collectible.width/2, collectible.y + collectible.height/2);
-        ctx.rotate(Math.sin(collectible.bobOffset * 3) * 0.1);
-        ctx.translate(-collectible.width/2, -collectible.height/2);
-        
-        // Градієнтна монетка/предмет
-        const gradient = ctx.createRadialGradient(
-            collectible.width/2, collectible.height/2, 0,
-            collectible.width/2, collectible.height/2, collectible.width/2
-        );
-        gradient.addColorStop(0, '#F1C40F');
-        gradient.addColorStop(0.7, '#F39C12');
-        gradient.addColorStop(1, '#E67E22');
-        
-        ctx.fillStyle = gradient;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#F1C40F';
-        ctx.fillRect(0, 0, collectible.width, collectible.height);
-        ctx.shadowBlur = 0;
-        
-        // Блик
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
-        ctx.fillRect(5, 5, 15, 10);
-        
-        ctx.restore();
-        
-        // Очки (опціонально)
-        ctx.fillStyle = 'white';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(collectible.points, collectible.x + collectible.width/2, collectible.y - 10);
-    });
+// Колізія об'єктів (прямокутник-прямокутник: спрощено)
+function checkCollision(obj1, obj2) {
+    return obj1.x < obj2.x + obj2.width &&
+           obj1.x + 30 > obj2.x &&
+           obj1.y < obj2.y + obj.height &&
+           obj1.y + 10 > obj2.y;
 }
 
-// Зірковий фон
+// Зірковий фон анімумвання
 function updateStars() {
     game.stars.forEach(star => {
         star.x -= star.speed;
-        if(star.x < 0) {
-            star.x = canvas.width;
-            star.y = Math.random() * canvas.height;
-        }
+        if (star.x < 0) star.x = canvas.width;
     });
 }
 
-function drawStars() {
+// Рендеринг всіх об'єктів
+function render() {
+    const { stars, collectibles, boomerangs, player } = game;
+
+    // Зірки фон
     ctx.fillStyle = 'white';
-    game.stars.forEach(star => {
-        ctx.globalAlpha = star.size / 3;
+    stars.forEach(star => {
+        ctx.globalAlpha = 0.8;
         ctx.fillRect(star.x, star.y, star.size, star.size);
     });
+
+    // Бумеранги
+    ctx.fillStyle = '#2ECC71';
     ctx.globalAlpha = 1;
-}
+    boomerangs.forEach(boomerang => {
+        ctx.fillRect(boomerang.x, boomerang.y - 5, 30, 10);
+    });
 
-// Рух гравця тільки вгору/вниз при стрільбі
-function updatePlayer() {
-    // Автоматичний рух вправо
-    game.player.x += game.gameSpeed * 0.7;
-    if(game.player.x > canvas.width) {
-        game.player.x = -game.player.width;
+    // Предмети (круглі монетки або твоя картинка)
+    collectibles.forEach(collectible => {
+        ctx.drawImage(game.collectibleImg, collectible.x, collectible.y, collectible.width, collectible.height);
+    });
+
+    // Гравця зображення або примітивний Пепе
+    if (!player.image.complete) {
+        ctx.fillStyle = '#9B59B6';
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+    } else {
+        ctx.drawImage(player.image, player.x, player.y, player.width, player.height);
     }
-    
-    // Плавний рух до цільової позиції при стрільбі
-    if(game.player.y < game.player.targetY) {
-        game.player.y += Math.min(game.player.speed, game.player.targetY - game.player.y);
-    } else if(game.player.y > game.player.targetY) {
-        game.player.y -= Math.min(game.player.speed, game.player.y - game.player.targetY);
-    }
-}
 
-// Керування - тільки стрільба + рух вгору/вниз
-document.addEventListener('keydown', (e) => {
-    if(e.code === 'Space') {
-        e.preventDefault();
-        shootBoomerang();
-        // Рух вгору при стрільбі
-        game.player.targetY = Math.max(0, game.player.y - 60);
-    }
-});
-
-canvas.addEventListener('click', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mouseY = e.clientY - rect.top;
-    
-    // Стрільба + рух до позиції миші по Y
-    shootBoomerang();
-    game.player.targetY = Math.max(0, Math.min(canvas.height - game.player.height, mouseY - game.player.height/2));
-});
-
-// Головний цикл
-function gameLoop() {
-    ctx.fillStyle = '#0A0A23';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    updateStars();
-    updatePlayer();
-    spawnCollectible();
-    updateCollectibles();
-    updateBoomerangs();
-    
-    drawStars();
-    drawCollectibles();
-    drawPlayer();
-    
+    // Відображення очок
+    ctx.globalAlpha = 1;
     pointsEl.textContent = game.score;
-    game.gameSpeed += 0.0005;
-    
-    requestAnimationFrame(gameLoop);
 }
 
-// Старт
-createStars();
-gameLoop();
+// Скидання гри
+function resetGame() {
+    game.player.y = canvas.height / 2;
+    game.player.velY = 0;
+    game.player.isAlive = true;
+    game.score = 0;
+    game.boomerangs = [];
+    game.collectibles = [];
+}
+
+initStars();

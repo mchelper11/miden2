@@ -1,6 +1,11 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('points');
+const finalScoreEl = document.getElementById('finalScore');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const startScreen = document.getElementById('startScreen');
+const restartBtn = document.getElementById('restartBtn');
+const startBtn = document.getElementById('startBtn');
 
 canvas.width = 1200;
 canvas.height = 700;
@@ -10,7 +15,8 @@ const game = {
     score: 0,
     gravity: 0.4,
     jumpForce: -8,
-    isRunning: true,
+    isRunning: false,
+    isStarted: false,
     player: {
         x: 150,
         y: canvas.height / 2,
@@ -23,7 +29,7 @@ const game = {
     stars: []
 };
 
-// ---- Завантаження спрайтів (опціонально) ----
+// ---- Завантаження спрайтів ----
 const pepeImg = new Image();
 pepeImg.src = 'pepe.png';
 
@@ -43,9 +49,21 @@ function initStars() {
     }
 }
 
+// ---- Кнопки ----
+startBtn.addEventListener('click', () => {
+    startScreen.classList.add('hidden');
+    game.isStarted = true;
+    game.isRunning = true;
+});
+
+restartBtn.addEventListener('click', () => {
+    resetGame();
+    gameOverScreen.classList.add('hidden');
+});
+
 // ---- Керування ----
 function handleInput() {
-    if (!game.isRunning) return;
+    if (!game.isRunning || !game.isStarted) return;
     game.player.velY = game.jumpForce;
     shootBoomerang();
 }
@@ -53,6 +71,14 @@ function handleInput() {
 document.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
         e.preventDefault();
+        
+        // Якщо гра ще не почалась — запустити
+        if (!game.isStarted) {
+            startScreen.classList.add('hidden');
+            game.isStarted = true;
+            game.isRunning = true;
+        }
+        
         handleInput();
     }
 });
@@ -183,7 +209,6 @@ function draw() {
         if (collectibleImg.complete && collectibleImg.naturalWidth > 0) {
             ctx.drawImage(collectibleImg, c.x, c.y, c.width, c.height);
         } else {
-            // Фолбек — червоний квадрат з STOP
             ctx.fillStyle = '#e74c3c';
             ctx.fillRect(c.x, c.y, c.width, c.height);
             ctx.fillStyle = '#fff';
@@ -207,7 +232,6 @@ function draw() {
     if (pepeImg.complete && pepeImg.naturalWidth > 0) {
         ctx.drawImage(pepeImg, game.player.x, game.player.y, game.player.width, game.player.height);
     } else {
-        // Фолбек — простий Pepe
         drawFallbackPepe();
     }
 
@@ -219,13 +243,11 @@ function draw() {
 function drawFallbackPepe() {
     const p = game.player;
 
-    // Тіло
     ctx.fillStyle = '#6b8e23';
     ctx.beginPath();
     ctx.ellipse(p.x + p.width / 2, p.y + p.height / 2, p.width / 2, p.height / 2, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Очі
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.ellipse(p.x + 18, p.y + 20, 10, 12, 0, 0, Math.PI * 2);
@@ -234,7 +256,6 @@ function drawFallbackPepe() {
     ctx.ellipse(p.x + 42, p.y + 20, 10, 12, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Зіниці
     ctx.fillStyle = '#000';
     ctx.beginPath();
     ctx.arc(p.x + 20, p.y + 22, 4, 0, Math.PI * 2);
@@ -243,7 +264,6 @@ function drawFallbackPepe() {
     ctx.arc(p.x + 44, p.y + 22, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // Рот
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -262,10 +282,8 @@ function isColliding(x1, y1, w1, h1, x2, y2, w2, h2) {
 // ---- Game Over ----
 function gameOver() {
     game.isRunning = false;
-    setTimeout(() => {
-        alert('GAME OVER!\nОчки: ' + game.score);
-        resetGame();
-    }, 100);
+    finalScoreEl.textContent = game.score;
+    gameOverScreen.classList.remove('hidden');
 }
 
 // ---- Скидання гри ----
@@ -280,18 +298,18 @@ function resetGame() {
 
 // ---- Головний цикл ----
 function gameLoop() {
-    if (game.isRunning) {
+    if (game.isRunning && game.isStarted) {
         updatePlayer();
         updateBoomerangs();
         spawnCollectibles();
         updateCollectibles();
-        updateStars();
     }
-
+    
+    updateStars();
     draw();
     requestAnimationFrame(gameLoop);
 }
 
-// ---- Старт гри ----
+// ---- Старт ----
 initStars();
 gameLoop();

@@ -43,6 +43,7 @@ const collectibleSpritePaths = [
     'enemy/enemy06.png',
     'enemy/enemy07.png',
     'enemy/enemy08.png',
+    'enemy/enemy11.png',
     'enemy/enemy09.png',
     'enemy/enemy10.png'
 ];

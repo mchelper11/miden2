@@ -131,6 +131,23 @@ function updatePlayer() {
         game.player.velY = 0;
         gameOver();
     }
+
+    // ✅ НОВЕ: перевірка колізії гравця з картинками
+    checkPlayerCollectibleCollision();
+}
+
+// ✅ НОВА ФУНКЦІЯ: перевірка колізії гравця з картинками
+function checkPlayerCollectibleCollision() {
+    for (let i = game.collectibles.length - 1; i >= 0; i--) {
+        const c = game.collectibles[i];
+        if (isColliding(
+            game.player.x, game.player.y, game.player.width, game.player.height,
+            c.x, c.y, c.width, c.height
+        )) {
+            gameOver();
+            return;
+        }
+    }
 }
 
 // ---- Оновлення бумерангів ----
@@ -163,12 +180,14 @@ function updateBoomerangs() {
     }
 }
 
-// ---- Спавн предметів (макс 3, з випадковим спрайтом) ----
+// ---- Спавн предметів (макс 4, з випадковим розміром 1x-3x) ----
 function spawnCollectibles() {
-    if (game.collectibles.length >= 3) return;
+    if (game.collectibles.length >= 4) return; // ✅ Змінено з 3 на 4
     if (Math.random() > 0.012) return;
 
-    const size = 80;
+    const baseSize = 80;
+    const scale = 1 + Math.random() * 2; // ✅ Рандомний масштаб від 1x до 3x
+    const size = baseSize * scale;
     const spriteIndex = Math.floor(Math.random() * collectibleSprites.length);
 
     game.collectibles.push({
@@ -178,7 +197,8 @@ function spawnCollectibles() {
         height: size,
         speed: 3.5,
         points: 100,
-        spriteIndex
+        spriteIndex,
+        scale // ✅ Зберігаємо масштаб для фолбеку
     });
 }
 
@@ -246,11 +266,11 @@ function drawCollectibles() {
         if (sprite && sprite.complete && sprite.naturalWidth > 0) {
             ctx.drawImage(sprite, c.x, c.y, c.width, c.height);
         } else {
-            // Фолбек: червоний квадрат із номером
+            // ✅ Оновлений фолбек враховує масштаб
             ctx.fillStyle = '#e74c3c';
             ctx.fillRect(c.x, c.y, c.width, c.height);
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 16px Arial';
+            ctx.font = `bold ${Math.min(16 * c.scale, 24)}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(`E${c.spriteIndex + 1}`, c.x + c.width / 2, c.y + c.height / 2);

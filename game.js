@@ -30,8 +30,8 @@ const game = {
 };
 
 // ---- Завантаження спрайтів ----
-const pepeImg = new Image();
-pepeImg.src = 'pepe.png';
+const astronautImg = new Image();
+astronautImg.src = 'astronaut.png';
 
 const collectibleImg = new Image();
 collectibleImg.src = 'collectible.png';
@@ -71,14 +71,13 @@ function handleInput() {
 document.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
         e.preventDefault();
-        
-        // Якщо гра ще не почалась — запустити
+
         if (!game.isStarted) {
             startScreen.classList.add('hidden');
             game.isStarted = true;
             game.isRunning = true;
         }
-        
+
         handleInput();
     }
 });
@@ -104,13 +103,11 @@ function updatePlayer() {
     game.player.velY += game.gravity;
     game.player.y += game.player.velY;
 
-    // Верхня межа
     if (game.player.y < 0) {
         game.player.y = 0;
         game.player.velY = 0;
     }
 
-    // Нижня межа — Game Over
     if (game.player.y + game.player.height > canvas.height) {
         game.player.y = canvas.height - game.player.height;
         game.player.velY = 0;
@@ -136,7 +133,6 @@ function updateBoomerangs() {
             }
         }
 
-        // Колізія з предметами
         for (let j = game.collectibles.length - 1; j >= 0; j--) {
             const c = game.collectibles[j];
             if (isColliding(b.x, b.y - 5, 25, 10, c.x, c.y, c.width, c.height)) {
@@ -190,11 +186,9 @@ function updateStars() {
 
 // ---- Малювання ----
 function draw() {
-    // Фон
     ctx.fillStyle = '#05051a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Зірки
     ctx.fillStyle = '#ffffff';
     game.stars.forEach(star => {
         ctx.globalAlpha = 0.3 + star.size / 3;
@@ -204,7 +198,6 @@ function draw() {
     });
     ctx.globalAlpha = 1;
 
-    // Предмети
     game.collectibles.forEach(c => {
         if (collectibleImg.complete && collectibleImg.naturalWidth > 0) {
             ctx.drawImage(collectibleImg, c.x, c.y, c.width, c.height);
@@ -219,7 +212,6 @@ function draw() {
         }
     });
 
-    // Бумеранги
     ctx.fillStyle = '#2ecc71';
     ctx.shadowColor = '#2ecc71';
     ctx.shadowBlur = 8;
@@ -228,47 +220,36 @@ function draw() {
     });
     ctx.shadowBlur = 0;
 
-    // Гравець
-    if (pepeImg.complete && pepeImg.naturalWidth > 0) {
-        ctx.drawImage(pepeImg, game.player.x, game.player.y, game.player.width, game.player.height);
+    if (astronautImg.complete && astronautImg.naturalWidth > 0) {
+        ctx.drawImage(astronautImg, game.player.x, game.player.y, game.player.width, game.player.height);
     } else {
-        drawFallbackPepe();
+        drawFallbackAstronaut();
     }
 
-    // Оновлення очок
     scoreEl.textContent = game.score;
 }
 
-// ---- Простий Pepe без картинки ----
-function drawFallbackPepe() {
+// ---- Фолбек астронавта ----
+function drawFallbackAstronaut() {
     const p = game.player;
 
-    ctx.fillStyle = '#6b8e23';
+    ctx.fillStyle = '#3498db';
     ctx.beginPath();
     ctx.ellipse(p.x + p.width / 2, p.y + p.height / 2, p.width / 2, p.height / 2, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#2c3e50';
     ctx.beginPath();
-    ctx.ellipse(p.x + 18, p.y + 20, 10, 12, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(p.x + 42, p.y + 20, 10, 12, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.x + p.width / 2, p.y + p.height * 0.3, p.width * 0.45, p.height * 0.35, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = '#1abc9c';
     ctx.beginPath();
-    ctx.arc(p.x + 20, p.y + 22, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(p.x + 44, p.y + 22, 4, 0, Math.PI * 2);
+    ctx.ellipse(p.x + p.width / 2, p.y + p.height * 0.3, p.width * 0.35, p.height * 0.25, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(p.x + p.width / 2, p.y + 42, 12, 0.1 * Math.PI, 0.9 * Math.PI);
-    ctx.stroke();
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(p.x + p.width * 0.25, p.y + p.height * 0.72, p.width * 0.5, p.height * 0.14);
 }
 
 // ---- Колізія прямокутників ----
@@ -304,7 +285,7 @@ function gameLoop() {
         spawnCollectibles();
         updateCollectibles();
     }
-    
+
     updateStars();
     draw();
     requestAnimationFrame(gameLoop);

@@ -35,21 +35,22 @@ astronautImg.src = 'astronaut.png';
 
 // 10 різних картинок для ворогів/предметів
 const collectibleSpritePaths = [
-    'enemies/enemy01.png',
-    'enemies/enemy02.png',
-    'enemies/enemy03.png',
-    'enemies/enemy04.png',
-    'enemies/enemy05.png',
-    'enemies/enemy06.png',
-    'enemies/enemy07.png',
-    'enemies/enemy08.png',
-    'enemies/enemy09.png',
-    'enemies/enemy10.png'
+    'enemy/enemy01.png',
+    'enemy/enemy02.png',
+    'enemy/enemy03.png',
+    'enemy/enemy04.png',
+    'enemy/enemy05.png',
+    'enemy/enemy06.png',
+    'enemy/enemy07.png',
+    'enemy/enemy08.png',
+    'enemy/enemy09.png',
+    'enemy/enemy10.png'
 ];
 
 const collectibleSprites = collectibleSpritePaths.map(path => {
     const img = new Image();
     img.src = path;
+    img.onerror = () => console.error(`❌ Не завантажено: ${path}`);
     return img;
 });
 
@@ -245,13 +246,14 @@ function drawCollectibles() {
         if (sprite && sprite.complete && sprite.naturalWidth > 0) {
             ctx.drawImage(sprite, c.x, c.y, c.width, c.height);
         } else {
+            // Фолбек: червоний квадрат із номером
             ctx.fillStyle = '#e74c3c';
             ctx.fillRect(c.x, c.y, c.width, c.height);
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 14px Arial';
+            ctx.font = 'bold 16px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('STOP', c.x + c.width / 2, c.y + c.height / 2);
+            ctx.fillText(`E${c.spriteIndex + 1}`, c.x + c.width / 2, c.y + c.height / 2);
         }
     });
 }

@@ -9,9 +9,37 @@
 <body>
     <div class="game-container">
         <canvas id="gameCanvas"></canvas>
+        
+        <!-- UI очків -->
         <div class="ui">
             <div class="score">POINTS: <span id="points">0</span></div>
-            <div class="controls">Пробіл — стрибок + постріл бумерангом</div>
+            <div class="controls">ПРОБІЛ / КЛІК — стрибок + постріл</div>
+        </div>
+
+        <!-- Game Over екран -->
+        <div id="gameOverScreen" class="game-over-screen hidden">
+            <div class="game-over-box">
+                <h1 class="game-over-title">GAME OVER</h1>
+                <div class="final-score">
+                    <span class="score-label">YOUR SCORE</span>
+                    <span id="finalScore" class="score-value">0</span>
+                </div>
+                <button id="restartBtn" class="restart-btn">
+                    🔄 PLAY AGAIN
+                </button>
+            </div>
+        </div>
+
+        <!-- Start екран -->
+        <div id="startScreen" class="start-screen">
+            <div class="start-box">
+                <h1 class="start-title">🐸 FLAPPY PEPE</h1>
+                <p class="start-subtitle">BOOMERANG SHOOTER</p>
+                <button id="startBtn" class="start-btn">
+                    ▶️ START GAME
+                </button>
+                <p class="start-hint">Натисни ПРОБІЛ або КЛІК щоб стрибати та стріляти</p>
+            </div>
         </div>
     </div>
     <script src="game.js"></script>
